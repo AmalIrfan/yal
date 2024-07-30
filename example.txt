@@ -1,0 +1,11 @@
+FUNCTION HELLO
+    NUMBER X 10
+    LOOP MYLOOP
+        WRITE "HELLO"
+        SUBTRACT X 1
+        IF NOT X THEN
+            BREAK MYLOOP
+        END
+    END
+END
+
