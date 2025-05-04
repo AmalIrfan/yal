@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -37,6 +38,18 @@ enum KeywordType check_keyword(const char *kw) {
 	return i;
 }
 
+void token_append(struct Token *tokens[], int *tsize, void *token_buffer, int *tbuf_size, enum TokenType token_type, enum KeywordType keyword_type, char *value)
+{
+	int slen = strlen(value);
+	tokens[*tsize] = token_buffer + *tbuf_size;
+	*tbuf_size = *tbuf_size + sizeof(**tokens) + slen + 1; // extra one for null
+	tokens[*tsize]->token_type = token_type;
+	tokens[*tsize]->keyword_type = keyword_type;
+	tokens[*tsize]->size = slen + 1;
+	strcpy(tokens[*tsize]->value, value);
+	*tsize = *tsize + 1;
+}
+
 int main()
 {
 	bool again = true;
@@ -48,6 +61,10 @@ int main()
 	int sline = 1;
 	int scol = 1;
 	bool is_num = true;
+	struct Token *tokens_[100] = {0};
+	void *token_buf = malloc(4096);
+	int tsize = 0;
+	int tbuf_size = 0;
 	while (again) {
 		char ch = fgetc(stdin);
 		enum TokenType token_type = _TT_NONE;
@@ -59,30 +76,32 @@ int main()
 			col ++;
 		if (!string_mode && (ch == ' ' || ch == '\t' || ch == '\n')) {
 			if (i != 0) {
-			enum KeywordType j = check_keyword(buf);
-			switch (j) {
-			case _KW_NONE:
-				// not keyword
-				break;
-			default:
-				token_type = TT_KEYWORD;
-			}
-			if (buf[0] == '"' && buf[i-1] == '"') {
-				token_type = TT_STRING;
-			} else if (j == _KW_NONE) {
-				if (is_num)
-					token_type = TT_INTEGER;
-				else
-					token_type = TT_NAME;
-			}
-			if (token_type != _TT_NONE)
-				fprintf(stdout, "token: %s ", tokens[token_type]);
-			if (j != _KW_NONE)
-				fprintf(stdout, "keyword: %s ", keywords[j]);
-			fprintf(stdout, "string: %s\n", buf); 
-			memset(buf, 0, i);
-			i = 0;
-			is_num = true;
+				enum KeywordType j = check_keyword(buf);
+				switch (j) {
+				case _KW_NONE:
+					// not keyword
+					break;
+				default:
+					token_type = TT_KEYWORD;
+				}
+				if (buf[0] == '"' && buf[i-1] == '"') {
+					token_type = TT_STRING;
+				} else if (j == _KW_NONE) {
+					if (is_num)
+						token_type = TT_INTEGER;
+					else
+						token_type = TT_NAME;
+				}
+				if (token_type != _TT_NONE) {
+					fprintf(stdout, "token: %s ", tokens[token_type]);
+					token_append(tokens_, &tsize, token_buf, &tbuf_size, token_type, j, buf);
+				}
+				if (j != _KW_NONE)
+					fprintf(stdout, "keyword: %s ", keywords[j]);
+				fprintf(stdout, "string: %s\n", buf);
+				memset(buf, 0, i);
+				i = 0;
+				is_num = true;
 			}
 		} else if (ch == EOF) {
 			// error?
@@ -110,4 +129,8 @@ int main()
 			fprintf(stderr, "example.txt:%d:%d: error: unrecognised char\n", line, col);
 		}
 	}
+	FILE *f = fopen("dump.bin", "w");
+	fwrite(token_buf, 1, 4096, f);
+	fclose(f);
+	return 0;
 }
